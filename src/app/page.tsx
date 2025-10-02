@@ -1,103 +1,204 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
+
+type Contact = {
+  id?: number;
+  name: string;
+  phone?: string;
+  country?: string;
+  province?: string;
+  city?: string;
+  street?: string;
+  address?: string;
+};
+
+export default function HomePage() {
+  const [query, setQuery] = useState<string>('');
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ name: '', phone: '', country: '', province: '', city: '', street: '' });
+  const [loading, setLoading] = useState(false);
+
+  const fetchContacts = useCallback(async (q?: string) => {
+    setLoading(true);
+    try {
+      const url = q ? `/api/contacts?q=${encodeURIComponent(q)}` : '/api/contacts';
+      const res = await fetch(url);
+      const data = await res.json();
+      // ensure array
+      setContacts(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchContacts(undefined); }, [fetchContacts]);
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchContacts(query || undefined), 300);
+    return ()=>clearTimeout(t);
+  }, [query, fetchContacts]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, Contact[]>();
+    contacts.forEach((c) => {
+      const first = (c.name?.trim()[0] ?? '').toUpperCase();
+      const letter = /[A-Z]/.test(first) ? first : '#';
+      if (!map.has(letter)) map.set(letter, []);
+      map.get(letter)!.push(c);
+    });
+    const arr = Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+    arr.forEach(([_, list]) => list.sort((a,b) => a.name.localeCompare(b.name)));
+    return arr.map(([letter, items]) => ({ letter, items }));
+  }, [contacts]);
+
+  const scrollToLetter = (letter: string) => {
+    const el = document.getElementById(`group-${letter}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const initialNameRef = useRef<HTMLInputElement | null>(null);
+
+  const onSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!form.name.trim()) return;
+    const payload = { ...form };
+    const res = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const created = await res.json();
+    if (res.ok) {
+      setContacts((cs) => [...cs, created]);
+      setModalOpen(false);
+      setForm({ name: '', phone: '', country: '', province: '', city: '', street: '' });
+    }
+  };
+
+  // Focus when modal opens
+  useEffect(() => {
+    if (modalOpen) {
+      setTimeout(() => initialNameRef.current?.focus(), 0);
+    }
+  }, [modalOpen]);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div style={{ padding: 16, background: '#000', minHeight: '100vh', color: '#fff' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+        <h1 style={{ margin: 0, fontSize: 28 }}>联系人</h1>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div style={{ display: 'flex', alignItems: 'center', marginTop: 8, gap: 8 }}>
+        <input
+          placeholder="搜索联系人"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{
+            flex: 1,
+            height: 40,
+            borderRadius: 20,
+            padding: '0 14px',
+            border: '1px solid #333',
+            background: '#111',
+            color: '#fff'
+          }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', marginTop: 12, height: '66vh', overflow: 'auto' }}>
+        <div style={{ flex: 1 }}>
+          {groups.map((g) => (
+            <section key={g.letter} id={`group-${g.letter}`} style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: '8px 0', color: '#ddd' }}>{g.letter}</h3>
+              {g.items.map((c) => (
+                <Link key={c.id} href={`/contacts/${c.id}`} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px',
+                    borderRadius: 12, background: '#111', margin: '6px 0'
+                  }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 20, background: '#2a2a2a',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600
+                    }}>
+                      {c.name?.charAt(0)?.toUpperCase() ?? '?'}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: 600 }}>{c.name}</span>
+                      <span style={{ color: '#aaa', fontSize: 12 }}>
+                        {c.phone ?? ''}{c.phone && c.city ? ' • ' : ''}{c.city ?? ''}
+                      </span>
+                    </div>
+                    <div style={{ marginLeft: 'auto', color: '#888' }}>›</div>
+                  </div>
+                </Link>
+              ))}
+            </section>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      <div style={{
+        position: 'fixed', right: 40, bottom: 20,
+        width: 60, height: 60, borderRadius: 30,
+        background: '#00b894', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontSize: 28, cursor: 'pointer', boxShadow: '0 6px 16px rgba(0,0,0,.4)'
+      }} onClick={() => setModalOpen(true)} aria-label="Add contact">
+        +
+      </div>
+
+      <div
+        aria-label="alphabet-nav"
+        style={{
+          position: 'fixed',
+          right: 8,
+          top: 120,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 6
+        }}
+      >
+        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').map((ch) => (
+          <button key={ch} onClick={() => scrollToLetter(ch)}
+            style={{ background: 'transparent', border: 'none', color: '#bbb', cursor: 'pointer', padding: 2, fontSize: 12 }}>
+            {ch}
+          </button>
+        ))}
+      </div>
+
+      {modalOpen && (
+        <div role="dialog" aria-label="Add contact" style={{
+          position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }} onClick={() => setModalOpen(false)}>
+          <form onSubmit={onSubmit} onClick={(e) => e.stopPropagation()} style={{
+            width: 420, background: '#111', padding: 20, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,.5)', color: '#fff'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: 12 }}>添加联系人</h3>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <input ref={initialNameRef} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="姓名" required style={{ height: 38, borderRadius: 6, padding: '0 10px', background: '#222', color: '#fff', border: '1px solid #333' }} />
+              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="电话" style={{ height: 38, borderRadius: 6, padding: '0 10px', background: '#222', color: '#fff', border: '1px solid #333' }} />
+              <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="国家" style={{ height: 38, borderRadius: 6, padding: '0 10px', background: '#222', color: '#fff', border: '1px solid #333' }} />
+              <input value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} placeholder="省份" style={{ height: 38, borderRadius: 6, padding: '0 10px', background: '#222', color: '#fff', border: '1px solid #333' }} />
+              <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="城市" style={{ height: 38, borderRadius: 6, padding: '0 10px', background: '#222', color: '#fff', border: '1px solid #333' }} />
+              <input value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} placeholder="街道" style={{ height: 38, borderRadius: 6, padding: '0 10px', background: '#222', color: '#fff', border: '1px solid #333' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <button type="button" onClick={() => setModalOpen(false)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #333', background: '#333', color: '#fff' }}>
+                取消
+              </button>
+              <button type="submit" style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #0f5132', background: '#0f5132', color: '#fff' }}>
+                保存
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
