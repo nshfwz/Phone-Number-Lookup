@@ -19,10 +19,8 @@ export default function HomePage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', country: '', province: '', city: '', street: '' });
-  const [loading, setLoading] = useState(false);
 
   const fetchContacts = useCallback(async (q?: string) => {
-    setLoading(true);
     try {
       const url = q ? `/api/contacts?q=${encodeURIComponent(q)}` : '/api/contacts';
       const res = await fetch(url);
@@ -31,8 +29,6 @@ export default function HomePage() {
       setContacts(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -52,7 +48,7 @@ export default function HomePage() {
       map.get(letter)!.push(c);
     });
     const arr = Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0]));
-    arr.forEach(([_, list]) => list.sort((a,b) => a.name.localeCompare(b.name)));
+    arr.forEach(([, list]) => list.sort((a,b) => a.name.localeCompare(b.name)));
     return arr.map(([letter, items]) => ({ letter, items }));
   }, [contacts]);
 

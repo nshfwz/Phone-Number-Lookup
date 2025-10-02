@@ -29,7 +29,14 @@ export type Contact = {
 };
 
 // Internal DB handle (lazy-loaded)
-let db: any = null;
+type RunResult = { lastID?: number; changes?: number };
+type DbWrapper = {
+  all<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  get<T = unknown>(sql: string, params?: unknown[]): Promise<T | undefined>;
+  run(sql: string, params?: unknown[]): Promise<RunResult & { lastID?: number }>;
+  exec(sql: string): Promise<void>;
+};
+let db: DbWrapper | null = null;
 
 // Path to the SQLite database file
 const DB_PATH = path.resolve(process.cwd(), 'db', 'contacts.db');
@@ -42,7 +49,8 @@ async function getDb() {
   const sqlite3Module = await import('sqlite3');
   // sqlite uses a promise-based API via the 'sqlite' package
   const sqlitePromiseLib = await import('sqlite');
-  const driver = sqlite3Module.default?.Database || sqlite3Module.Database;
+  type Sqlite3ModuleShape = { default?: { Database?: unknown }; Database?: unknown };
+  const driver = (sqlite3Module as unknown as Sqlite3ModuleShape).default?.Database ?? (sqlite3Module as unknown as { Database?: unknown }).Database;
 
   // Open database and ensure table exists
   db = await sqlitePromiseLib.open({
@@ -95,7 +103,7 @@ export async function getContacts(q?: string): Promise<Contact[]> {
 // Get a single contact by ID
 export async function getContactById(id: number): Promise<Contact | null> {
   const database = await getDb();
-  const row = await database.get('SELECT * FROM contacts WHERE id = ?', [id]);
+  const row = await database.get<Contact>('SELECT * FROM contacts WHERE id = ?', [id]);
   return row ?? null;
 }
 
@@ -119,7 +127,7 @@ export async function addContact(data: {
     [data.name, data.phone ?? '', data.country ?? '', data.province ?? '', data.city ?? '', data.street ?? '', address]
   );
 
-  const id = (res as any).lastID;
+  const id = (res as RunResult).lastID ?? undefined;
   return {
     id,
     name: data.name,
@@ -144,7 +152,7 @@ export async function updateContact(id: number, data: Partial<{
   const database = await getDb();
 
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
 
   if (data.name !== undefined) { updates.push('name = ?'); values.push(data.name); }
   if (data.phone !== undefined) { updates.push('phone = ?'); values.push(data.phone); }
@@ -179,7 +187,8 @@ export async function updateContact(id: number, data: Partial<{
 export async function deleteContact(id: number): Promise<boolean> {
   const database = await getDb();
   const res = await database.run('DELETE FROM contacts WHERE id = ?', [id]);
-  return (res as any).changes > 0;
+  const _changes = (res as RunResult).changes ?? 0;
+  return _changes > 0;
 }
 
 // Re-export for convenience

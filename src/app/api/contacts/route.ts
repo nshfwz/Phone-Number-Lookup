@@ -11,24 +11,31 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   await initDb();
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     body = null;
   }
 
-  if (!body || typeof body.name !== 'string' || body.name.trim() === '') {
+  if (!body || typeof body !== 'object') {
+    return new NextResponse('Invalid request body', { status: 400 });
+  }
+
+  const payload = body as { name?: unknown; phone?: unknown; country?: unknown; province?: unknown; city?: unknown; street?: unknown };
+
+  const name = payload.name;
+  if (typeof name !== 'string' || name.trim() === '') {
     return new NextResponse('Invalid request body', { status: 400 });
   }
 
   const contact = await addContact({
-    name: body.name,
-    phone: body.phone,
-    country: body.country,
-    province: body.province,
-    city: body.city,
-    street: body.street,
+    name: name,
+    phone: typeof payload.phone === 'string' ? payload.phone : undefined,
+    country: typeof payload.country === 'string' ? payload.country : undefined,
+    province: typeof payload.province === 'string' ? payload.province : undefined,
+    city: typeof payload.city === 'string' ? payload.city : undefined,
+    street: typeof payload.street === 'string' ? payload.street : undefined,
   });
 
   return NextResponse.json(contact, { status: 201 });
