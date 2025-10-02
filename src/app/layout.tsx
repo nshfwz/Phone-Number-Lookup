@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "电话号码",
+  title: "电话号码查找系统",
 };
 
 export default function RootLayout({
