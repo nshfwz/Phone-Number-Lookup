@@ -76,6 +76,30 @@ export default function ContactDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!contact?.id) return;
+    console.log('Deleting contact id:', contact?.id);
+    const confirmed = window.confirm('确定要删除此联系人吗？');
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}`, {
+        method: 'DELETE'
+      });
+      if (res.status === 204) {
+        router.push('/');
+      } else if (res.status === 404) {
+        alert('未找到联系人，可能已被删除');
+      } else {
+        const text = await res.text();
+        console.error('Delete failed, status:', res.status, 'response:', text);
+        alert('删除失败，请稍后重试');
+      }
+    } catch (e) {
+      console.error('Delete request error:', e);
+      alert('删除失败，请稍后重试');
+    }
+  };
+
   if (loading) {
     return <div style={{ padding: 20, color: '#fff' }}>加载中...</div>;
   }
@@ -88,7 +112,10 @@ export default function ContactDetail() {
         <div style={{ maxWidth: 860, margin: '0 auto', background: '#111', padding: 20, borderRadius: 12, color: '#fff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ margin: 0 }}>{editing ? '编辑联系人' : contact.name}</h2>
-            <button onClick={() => setEditing((e) => !e)} style={{ padding: '8px 12px', borderRadius: 6 }}>编辑</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setEditing((e) => !e)} style={{ padding: '8px 12px', borderRadius: 6 }}>编辑</button>
+              <button onClick={handleDelete} style={{ padding: '8px 12px', borderRadius: 6, background: '#a00', color: '#fff', border: '1px solid #700' }}>删除</button>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>

@@ -1,4 +1,4 @@
- import path from 'path';
+import path from 'path';
 
 /**
  * SQLite-based contacts data access layer.
@@ -175,5 +175,11 @@ export async function updateContact(id: number, data: Partial<{
   return getContactById(id);
 }
 
+// Delete a contact
+export async function deleteContact(id: number): Promise<boolean> {
+  const database = await getDb();
+  const res = await database.run('DELETE FROM contacts WHERE id = ?', [id]);
+  return (res as any).changes > 0;
+}
+
 // Re-export for convenience
-export { Contact };
