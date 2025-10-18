@@ -152,19 +152,45 @@ export default function HomePage() {
         style={{
           position: 'fixed',
           right: 8,
-          top: 120,
+          top: '50%',
+          transform: 'translateY(-50%)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 6
+          gap: 4,
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          padding: '8px 4px',
+          borderRadius: 8,
+          background: 'rgba(17, 17, 17, 0.8)',
+          backdropFilter: 'blur(10px)',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}
       >
-        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').map((ch) => (
-          <button key={ch} onClick={() => scrollToLetter(ch)}
-            style={{ background: 'transparent', border: 'none', color: '#bbb', cursor: 'pointer', padding: 2, fontSize: 12 }}>
-            {ch}
-          </button>
-        ))}
+        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').map((ch) => {
+          const hasGroup = groups.some(g => g.letter === ch);
+          return (
+            <button 
+              key={ch} 
+              onClick={() => scrollToLetter(ch)}
+              disabled={!hasGroup}
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                color: hasGroup ? '#00b894' : '#555', 
+                cursor: hasGroup ? 'pointer' : 'default', 
+                padding: 2, 
+                fontSize: 11,
+                fontWeight: hasGroup ? 600 : 400,
+                transition: 'all 0.2s',
+                opacity: hasGroup ? 1 : 0.5
+              }}
+            >
+              {ch}
+            </button>
+          );
+        })}
       </div>
 
       {modalOpen && (
