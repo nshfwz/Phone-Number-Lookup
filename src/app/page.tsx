@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import pinyin from 'tiny-pinyin';
 
 type Contact = {
   id?: number;
@@ -42,13 +43,18 @@ export default function HomePage() {
   const groups = useMemo(() => {
     const map = new Map<string, Contact[]>();
     contacts.forEach((c) => {
-      const first = (c.name?.trim()[0] ?? '').toUpperCase();
+      const name = c.name?.trim() ?? '';
+      let first = '';
+      if (name) {
+         const py = pinyin.convertToPinyin(name);
+         first = py.charAt(0).toUpperCase();
+      }
       const letter = /[A-Z]/.test(first) ? first : '#';
       if (!map.has(letter)) map.set(letter, []);
       map.get(letter)!.push(c);
     });
     const arr = Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0]));
-    arr.forEach(([, list]) => list.sort((a,b) => a.name.localeCompare(b.name)));
+    arr.forEach(([, list]) => list.sort((a,b) => a.name.localeCompare(b.name, 'zh-Hans-CN')));
     return arr.map(([letter, items]) => ({ letter, items }));
   }, [contacts]);
 
@@ -152,19 +158,45 @@ export default function HomePage() {
         style={{
           position: 'fixed',
           right: 8,
-          top: 120,
+          top: '50%',
+          transform: 'translateY(-50%)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 6
+          gap: 4,
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          padding: '8px 4px',
+          borderRadius: 8,
+          background: 'rgba(17, 17, 17, 0.8)',
+          backdropFilter: 'blur(10px)',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}
       >
-        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').map((ch) => (
-          <button key={ch} onClick={() => scrollToLetter(ch)}
-            style={{ background: 'transparent', border: 'none', color: '#bbb', cursor: 'pointer', padding: 2, fontSize: 12 }}>
-            {ch}
-          </button>
-        ))}
+        {'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').map((ch) => {
+          const hasGroup = groups.some(g => g.letter === ch);
+          return (
+            <button 
+              key={ch} 
+              onClick={() => scrollToLetter(ch)}
+              disabled={!hasGroup}
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                color: hasGroup ? '#00b894' : '#555', 
+                cursor: hasGroup ? 'pointer' : 'default', 
+                padding: 2, 
+                fontSize: 11,
+                fontWeight: hasGroup ? 600 : 400,
+                transition: 'all 0.2s',
+                opacity: hasGroup ? 1 : 0.5
+              }}
+            >
+              {ch}
+            </button>
+          );
+        })}
       </div>
 
       {modalOpen && (
